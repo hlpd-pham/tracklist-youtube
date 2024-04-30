@@ -1,0 +1,11 @@
+# Compiled binary files
+*.exe
+*.out
+
+# Build directories
+/bin/
+/pkg/
+/vendor/
+
+go.mod
+*client_secret.json
