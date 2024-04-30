@@ -38,7 +38,7 @@ func CreateYoutubeClient() (*youtube.Service, error) {
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
-	client := GetClient(ctx, config)
+	client := getClient(ctx, config)
 	service, err := youtube.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 
@@ -48,9 +48,9 @@ func CreateYoutubeClient() (*youtube.Service, error) {
 	return service, nil
 }
 
-// GetClient uses a Context and Config to retrieve a Token
+// getClient uses a Context and Config to retrieve a Token
 // then generate a Client. It returns the generated Client.
-func GetClient(ctx context.Context, config *oauth2.Config) *http.Client {
+func getClient(ctx context.Context, config *oauth2.Config) *http.Client {
 	cacheFile, err := tokenCacheFile()
 	if err != nil {
 		log.Fatalf("Unable to get path to cached credential file. %v", err)
@@ -129,26 +129,6 @@ func HandleError(err error, message string) {
 	}
 }
 
-func ChannelsListByHandle(service *youtube.Service, part string, forUsername string) {
-	channels := []string{part}
-	call := service.Channels.List(channels)
-	call = call.ForHandle(forUsername)
-	response, err := call.Do()
-	HandleError(err, "")
-	fmt.Println(fmt.Sprintf("This channel's ID is %s. Its title is '%s', "+
-		"and it has %d views.",
-		response.Items[0].Id,
-		response.Items[0].Snippet.Title,
-		response.Items[0].Statistics.ViewCount))
-}
-
-func GetVideoInfo(service *youtube.Service, parts []string, videoId string) {
-	call := service.Videos.List(parts).Id(videoId)
-	response, err := call.Do()
-	HandleError(err, "")
-	fmt.Printf("Video Id: %s, title: %s\n", videoId, response.Items[0].Snippet.Title)
-}
-
 func replaceHtmlEntities(input string) string {
 	// Define a regular expression pattern to match HTML entities
 	pattern := `(&amp;)|(&#39;)`
@@ -162,7 +142,55 @@ func replaceHtmlEntities(input string) string {
 	})
 }
 
-func GetTracklistComment(service *youtube.Service,
+func GetTracklistCommentByLength(service *youtube.Service,
+	parts []string,
+	videoId string,
+) {
+	call := service.CommentThreads.List(parts).VideoId(videoId)
+	response, err := call.Do()
+	HandleError(err, "")
+
+	trackListComments := []*youtube.Comment{}
+
+	for response.NextPageToken != "" {
+		for _, commentThread := range response.Items {
+			topComment := commentThread.
+				Snippet.
+				TopLevelComment
+			if strings.Contains(topComment.Snippet.TextDisplay, "Tracklist") ||
+				strings.Contains(topComment.Snippet.TextDisplay, "tracklist") {
+				trackListComments = append(trackListComments, topComment)
+			}
+		}
+		call = service.CommentThreads.
+			List(parts).
+			VideoId(videoId).
+			PageToken(response.NextPageToken)
+		response, err = call.Do()
+		HandleError(err, "")
+	}
+
+	bestComment := youtube.Comment{Snippet: &youtube.CommentSnippet{TextDisplay: ""}}
+	if len(trackListComments) > 0 {
+		fmt.Printf("Found %d comments\n", len(trackListComments))
+		for _, comment := range trackListComments {
+			if len(comment.Snippet.TextDisplay) > len(bestComment.Snippet.TextDisplay) {
+				bestComment = *comment
+			}
+		}
+		pattern := `<a.*>.*<\/a>\s`
+		re := regexp.MustCompile(pattern)
+		removeBreakTags := strings.ReplaceAll(
+			bestComment.Snippet.TextDisplay, "<br>", "\n")
+		result := re.ReplaceAllString(removeBreakTags, "")
+
+		fmt.Println(replaceHtmlEntities(result))
+	} else {
+		fmt.Println("no tracklist comment found")
+	}
+}
+
+func GetTracklistCommentByLike(service *youtube.Service,
 	parts []string,
 	videoId string,
 ) {
@@ -209,4 +237,24 @@ func GetTracklistComment(service *youtube.Service,
 	} else {
 		fmt.Println("no tracklist comment found")
 	}
+}
+
+func GetVideoInfo(service *youtube.Service, parts []string, videoId string) {
+	call := service.Videos.List(parts).Id(videoId)
+	response, err := call.Do()
+	HandleError(err, "")
+	fmt.Printf("Video Id: %s, title: %s\n", videoId, response.Items[0].Snippet.Title)
+}
+
+func ChannelsListByHandle(service *youtube.Service, part string, forUsername string) {
+	channels := []string{part}
+	call := service.Channels.List(channels)
+	call = call.ForHandle(forUsername)
+	response, err := call.Do()
+	HandleError(err, "")
+	fmt.Println(fmt.Sprintf("This channel's ID is %s. Its title is '%s', "+
+		"and it has %d views.",
+		response.Items[0].Id,
+		response.Items[0].Snippet.Title,
+		response.Items[0].Statistics.ViewCount))
 }
