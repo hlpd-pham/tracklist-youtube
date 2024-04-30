@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bufio"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -18,33 +18,36 @@ func parseInput(text string) []string {
 }
 
 func main() {
+	tracklistCmd := flag.NewFlagSet("tracklist", flag.ExitOnError)
+	videoIdFlag := tracklistCmd.String("videoId", "", "videoId")
+	highestByFlag := tracklistCmd.String("highestBy", "like", "highestBy")
+
 	service, err := yt.CreateYoutubeClient()
 	if err != nil {
 		fmt.Println(fmt.Errorf("encounter error while creating youtube client: %v", err))
 		return
 	}
 
-	cmdCfg := commands.CommandConfig{
-		YtClient: service,
+	if len(os.Args) < 2 {
+		tracklistCmd.Usage()
+		os.Exit(1)
 	}
-	for {
-		fmt.Print("tracklist-YT > ")
-		scanner := bufio.NewScanner(os.Stdin)
-		scanner.Scan()
-		inputTokens := parseInput(scanner.Text())
-		command, ok := commands.GetCommands()[inputTokens[0]]
-		if !ok {
-			fmt.Println("Unknown command")
-			commands.CommandHelp(&cmdCfg)
-		} else {
-			cmdCfg.CommandArgs = inputTokens[1:]
-			err := command.Callback(&cmdCfg)
-			if err != nil {
-				fmt.Printf("Found error while running command %s: %v\n", command.Name, err)
-			}
+
+	switch os.Args[1] {
+	case "tracklist":
+		tracklistCmd.Parse(os.Args[2:])
+		cmdCfg := commands.CommandConfig{
+			YtClient:  service,
+			VideoId:   *videoIdFlag,
+			HighestBy: *highestByFlag,
 		}
-
-		fmt.Println()
-
+		err = commands.CommandTracklist(&cmdCfg)
+		if err != nil {
+			tracklistCmd.Usage()
+			os.Exit(1)
+		}
+	default:
+		flag.Usage()
+		os.Exit(1)
 	}
 }
