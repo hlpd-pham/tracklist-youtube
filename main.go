@@ -47,8 +47,4 @@ func main() {
 		fmt.Println()
 
 	}
-
-	// videoId := "w3zCxh-70Ms"
-	// yt.GetVideoInfo(service, []string{"snippet", "id"}, videoId)
-	// yt.GetTracklistCommentByLength(service, []string{"snippet", "id", "replies"}, videoId)
 }

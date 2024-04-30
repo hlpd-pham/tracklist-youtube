@@ -12,5 +12,10 @@ func GetCommands() map[string]CliCommand {
 			Description: "Exits tracklist CLI",
 			Callback:    CommandExit,
 		},
+		"tracklist": {
+			Name:        "tracklist",
+			Description: "Gets tracklist from youtube videoId",
+			Callback:    CommandTracklist,
+		},
 	}
 }

@@ -239,11 +239,15 @@ func GetTracklistCommentByLike(service *youtube.Service,
 	}
 }
 
-func GetVideoInfo(service *youtube.Service, parts []string, videoId string) {
+func GetVideoInfo(service *youtube.Service, parts []string, videoId string) error {
 	call := service.Videos.List(parts).Id(videoId)
 	response, err := call.Do()
 	HandleError(err, "")
+	if len(response.Items) == 0 {
+		return fmt.Errorf("could not find video for id: %s", videoId)
+	}
 	fmt.Printf("Video Id: %s, title: %s\n", videoId, response.Items[0].Snippet.Title)
+	return nil
 }
 
 func ChannelsListByHandle(service *youtube.Service, part string, forUsername string) {
