@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -19,11 +20,12 @@ func parseInput(text string) []string {
 }
 
 func main() {
+	logger := log.Default()
 	tracklistCmd := flag.NewFlagSet("tracklist", flag.ExitOnError)
 	videoIdFlag := tracklistCmd.String("videoId", "", "videoId")
-	highestByFlag := tracklistCmd.String("highestBy", "like", "highestBy")
+	highestByFlag := tracklistCmd.String("highestBy", "", "highestBy")
 
-	ytClient, err := yt.CreateYoutubeClient()
+	ytClient, err := yt.NewYtWrapperClient(logger)
 	if err != nil {
 		fmt.Println(fmt.Errorf("encounter error while creating youtube client: %v", err))
 		os.Exit(1)
@@ -37,9 +39,10 @@ func main() {
 	switch os.Args[1] {
 	case "tracklist":
 		tracklistCmd.Parse(os.Args[2:])
+		logger.Println(*videoIdFlag, *highestByFlag)
 		cmdCfg := commands.CommandConfig{
 			YtClient:      ytClient,
-			SpotifyClient: spotify_wrapper.GetWrapperClient(),
+			SpotifyClient: spotify_wrapper.GetWrapperClient(logger),
 			VideoId:       *videoIdFlag,
 			HighestBy:     *highestByFlag,
 		}

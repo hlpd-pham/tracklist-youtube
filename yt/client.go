@@ -25,7 +25,22 @@ const missingClientSecretsMessage = `
 Please configure OAuth 2.0
 `
 
-func CreateYoutubeClient() (*youtube.Service, error) {
+type YtWrapperClient struct {
+	client *youtube.Service
+	logger *log.Logger
+}
+
+func validateHighestBy(highestBy string) error {
+	allowedValues := []string{"like", "length"}
+	for _, allowedSortBy := range allowedValues {
+		if highestBy == allowedSortBy {
+			return nil
+		}
+	}
+	return fmt.Errorf("highestBy value has to be: %v", allowedValues)
+}
+
+func NewYtWrapperClient(logger *log.Logger) (*YtWrapperClient, error) {
 	ctx := context.Background()
 
 	b, err := os.ReadFile("youtube_client_secret.json")
@@ -46,7 +61,10 @@ func CreateYoutubeClient() (*youtube.Service, error) {
 		HandleError(err, "Error creating YouTube client")
 		return nil, err
 	}
-	return service, nil
+	return &YtWrapperClient{
+		client: service,
+		logger: logger,
+	}, nil
 }
 
 // getClient uses a Context and Config to retrieve a Token
@@ -58,15 +76,15 @@ func getClient(ctx context.Context, config *oauth2.Config) *http.Client {
 	}
 	tok, err := tokenFromFile(cacheFile)
 	if err != nil {
-		tok = GetTokenFromWeb(config)
+		tok = getTokenFromWeb(config)
 		saveToken(cacheFile, tok)
 	}
 	return config.Client(ctx, tok)
 }
 
-// GetTokenFromWeb uses Config to request a Token.
+// getTokenFromWeb uses Config to request a Token.
 // It returns the retrieved Token.
-func GetTokenFromWeb(config *oauth2.Config) *oauth2.Token {
+func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	fmt.Printf("Go to the following link in your browser then type the "+
 		"authorization code: \n%v\n", authURL)
@@ -143,12 +161,20 @@ func replaceHtmlEntities(input string) string {
 	})
 }
 
-func GetTracklistComment(service *youtube.Service,
+func (y *YtWrapperClient) GetTracklistComment(
 	parts []string,
 	videoId string,
 	highestBy string,
 ) (string, error) {
-	call := service.CommentThreads.List(parts).VideoId(videoId)
+	y.logger.Printf("parts: %v, videoId: %v, highestBy: %s", parts, videoId, highestBy)
+
+	err := validateHighestBy(highestBy)
+	if err != nil {
+		y.logger.Println(err.Error())
+		return "", err
+	}
+
+	call := y.client.CommentThreads.List(parts).VideoId(videoId)
 	response, err := call.Do()
 	HandleError(err, "")
 
@@ -164,7 +190,7 @@ func GetTracklistComment(service *youtube.Service,
 				trackListComments = append(trackListComments, topComment)
 			}
 		}
-		call = service.CommentThreads.
+		call = y.client.CommentThreads.
 			List(parts).
 			VideoId(videoId).
 			PageToken(response.NextPageToken)
@@ -179,14 +205,17 @@ func GetTracklistComment(service *youtube.Service,
 
 	fmt.Printf("Found %d comments\n", len(trackListComments))
 	for _, comment := range trackListComments {
-		if highestBy == "length" {
+		switch highestBy {
+		case "length":
 			if len(comment.Snippet.TextDisplay) > len(bestComment.Snippet.TextDisplay) {
 				bestComment = *comment
 			}
-		} else {
+		case "like":
 			if comment.Snippet.LikeCount > bestComment.Snippet.LikeCount {
 				bestComment = *comment
 			}
+		default:
+			return "", errors.New("highestBy has to be 'like' or 'length'")
 		}
 	}
 	fmt.Printf("Best comment has %d likes and length %d\n",
@@ -201,8 +230,8 @@ func GetTracklistComment(service *youtube.Service,
 	return replaceHtmlEntities(result), nil
 }
 
-func GetVideoInfo(service *youtube.Service, parts []string, videoId string) error {
-	call := service.Videos.List(parts).Id(videoId)
+func (y *YtWrapperClient) GetVideoInfo(parts []string, videoId string) error {
+	call := y.client.Videos.List(parts).Id(videoId)
 	response, err := call.Do()
 	HandleError(err, "")
 	if len(response.Items) == 0 {
@@ -212,9 +241,9 @@ func GetVideoInfo(service *youtube.Service, parts []string, videoId string) erro
 	return nil
 }
 
-func ChannelsListByHandle(service *youtube.Service, part string, forUsername string) {
+func (y *YtWrapperClient) ChannelsListByHandle(part string, forUsername string) {
 	channels := []string{part}
-	call := service.Channels.List(channels)
+	call := y.client.Channels.List(channels)
 	call = call.ForHandle(forUsername)
 	response, err := call.Do()
 	HandleError(err, "")

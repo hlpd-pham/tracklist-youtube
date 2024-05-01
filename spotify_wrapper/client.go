@@ -14,10 +14,11 @@ import (
 )
 
 type WrapperClient struct {
-	Client *spotify.Client
+	client *spotify.Client
+	logger *log.Logger
 }
 
-func GetWrapperClient() *WrapperClient {
+func GetWrapperClient(logger *log.Logger) *WrapperClient {
 	godotenv.Load()
 	ctx := context.Background()
 	config := &clientcredentials.Config{
@@ -32,7 +33,7 @@ func GetWrapperClient() *WrapperClient {
 	}
 
 	httpClient := spotifyauth.New().Client(ctx, token)
-	return &WrapperClient{Client: spotify.New(httpClient)}
+	return &WrapperClient{client: spotify.New(httpClient), logger: logger}
 }
 
 func (c *WrapperClient) GetSongsFromLines(lines []string) {
@@ -45,7 +46,7 @@ func (c *WrapperClient) GetSongsFromLines(lines []string) {
 		// fmt.Printf("bestEffortToken: '%s' - line: '%s'\n", bestEffortToken, line)
 
 		ctx := context.Background()
-		result, err := c.Client.Search(ctx, bestEffortToken, spotify.SearchTypeTrack)
+		result, err := c.client.Search(ctx, bestEffortToken, spotify.SearchTypeTrack)
 		if err != nil {
 			fmt.Println(fmt.Errorf("found error while searching for song: %s, err: %s", bestEffortToken, err.Error()))
 			continue
