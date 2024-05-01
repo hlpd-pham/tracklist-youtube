@@ -203,7 +203,7 @@ func (y *YtWrapperClient) GetTracklistComment(
 		return "", errors.New("no tracklist comment found")
 	}
 
-	fmt.Printf("Found %d comments\n", len(trackListComments))
+	y.logger.Printf("Found %d comments\n", len(trackListComments))
 	for _, comment := range trackListComments {
 		switch highestBy {
 		case "length":
@@ -218,7 +218,7 @@ func (y *YtWrapperClient) GetTracklistComment(
 			return "", errors.New("highestBy has to be 'like' or 'length'")
 		}
 	}
-	fmt.Printf("Best comment has %d likes and length %d\n",
+	y.logger.Printf("Best comment has %d likes and length %d\n",
 		bestComment.Snippet.LikeCount,
 		len(bestComment.Snippet.TextDisplay))
 	pattern := `<a.*>.*<\/a>\s`
@@ -237,7 +237,7 @@ func (y *YtWrapperClient) GetVideoInfo(parts []string, videoId string) error {
 	if len(response.Items) == 0 {
 		return fmt.Errorf("could not find video for id: %s", videoId)
 	}
-	fmt.Printf("Video Id: %s, title: %s\n", videoId, response.Items[0].Snippet.Title)
+	y.logger.Printf("Video Id: %s, title: %s\n", videoId, response.Items[0].Snippet.Title)
 	return nil
 }
 
@@ -247,9 +247,9 @@ func (y *YtWrapperClient) ChannelsListByHandle(part string, forUsername string) 
 	call = call.ForHandle(forUsername)
 	response, err := call.Do()
 	HandleError(err, "")
-	fmt.Println(fmt.Sprintf("This channel's ID is %s. Its title is '%s', "+
-		"and it has %d views.",
+	y.logger.Printf("This channel's ID is %s. Its title is '%s', "+
+		"and it has %d views.\n",
 		response.Items[0].Id,
 		response.Items[0].Snippet.Title,
-		response.Items[0].Statistics.ViewCount))
+		response.Items[0].Statistics.ViewCount)
 }
