@@ -2,6 +2,7 @@ package yt
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"log"
@@ -142,10 +143,11 @@ func replaceHtmlEntities(input string) string {
 	})
 }
 
-func GetTracklistCommentByLength(service *youtube.Service,
+func GetTracklistComment(service *youtube.Service,
 	parts []string,
 	videoId string,
-) {
+	highestBy string,
+) (string, error) {
 	call := service.CommentThreads.List(parts).VideoId(videoId)
 	response, err := call.Do()
 	HandleError(err, "")
@@ -170,73 +172,33 @@ func GetTracklistCommentByLength(service *youtube.Service,
 		HandleError(err, "")
 	}
 
-	bestComment := youtube.Comment{Snippet: &youtube.CommentSnippet{TextDisplay: ""}}
-	if len(trackListComments) > 0 {
-		fmt.Printf("Found %d comments\n", len(trackListComments))
-		for _, comment := range trackListComments {
+	bestComment := youtube.Comment{Snippet: &youtube.CommentSnippet{TextDisplay: "", LikeCount: 0}}
+	if len(trackListComments) == 0 {
+		return "", errors.New("no tracklist comment found")
+	}
+
+	fmt.Printf("Found %d comments\n", len(trackListComments))
+	for _, comment := range trackListComments {
+		if highestBy == "length" {
 			if len(comment.Snippet.TextDisplay) > len(bestComment.Snippet.TextDisplay) {
 				bestComment = *comment
 			}
-		}
-		pattern := `<a.*>.*<\/a>\s`
-		re := regexp.MustCompile(pattern)
-		removeBreakTags := strings.ReplaceAll(
-			bestComment.Snippet.TextDisplay, "<br>", "\n")
-		result := re.ReplaceAllString(removeBreakTags, "")
-
-		fmt.Println(replaceHtmlEntities(result))
-	} else {
-		fmt.Println("no tracklist comment found")
-	}
-}
-
-func GetTracklistCommentByLike(service *youtube.Service,
-	parts []string,
-	videoId string,
-) {
-	call := service.CommentThreads.List(parts).VideoId(videoId)
-	response, err := call.Do()
-	HandleError(err, "")
-
-	trackListComments := []*youtube.Comment{}
-
-	for response.NextPageToken != "" {
-		for _, commentThread := range response.Items {
-			topComment := commentThread.
-				Snippet.
-				TopLevelComment
-			if strings.Contains(topComment.Snippet.TextDisplay, "Tracklist") ||
-				strings.Contains(topComment.Snippet.TextDisplay, "tracklist") {
-				trackListComments = append(trackListComments, topComment)
-			}
-		}
-		call = service.CommentThreads.
-			List(parts).
-			VideoId(videoId).
-			PageToken(response.NextPageToken)
-		response, err = call.Do()
-		HandleError(err, "")
-	}
-
-	bestComment := youtube.Comment{Snippet: &youtube.CommentSnippet{LikeCount: 0}}
-	if len(trackListComments) > 0 {
-		fmt.Printf("Found %d comments\n", len(trackListComments))
-		for _, comment := range trackListComments {
-			curLikeCount := comment.Snippet.LikeCount
-			if curLikeCount > bestComment.Snippet.LikeCount {
+		} else {
+			if comment.Snippet.LikeCount > bestComment.Snippet.LikeCount {
 				bestComment = *comment
 			}
 		}
-		pattern := `<a.*>.*<\/a>\s`
-		re := regexp.MustCompile(pattern)
-		removeBreakTags := strings.ReplaceAll(
-			bestComment.Snippet.TextDisplay, "<br>", "\n")
-		result := re.ReplaceAllString(removeBreakTags, "")
-
-		fmt.Println(replaceHtmlEntities(result))
-	} else {
-		fmt.Println("no tracklist comment found")
 	}
+	fmt.Printf("Best comment has %d likes and length %d\n",
+		bestComment.Snippet.LikeCount,
+		len(bestComment.Snippet.TextDisplay))
+	pattern := `<a.*>.*<\/a>\s`
+	re := regexp.MustCompile(pattern)
+	removeBreakTags := strings.ReplaceAll(
+		bestComment.Snippet.TextDisplay, "<br>", "\n")
+	result := re.ReplaceAllString(removeBreakTags, "")
+
+	return replaceHtmlEntities(result), nil
 }
 
 func GetVideoInfo(service *youtube.Service, parts []string, videoId string) error {

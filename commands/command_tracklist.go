@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hlpd-pham/tracklist-youtube/yt"
 )
@@ -13,11 +14,28 @@ func CommandTracklist(config *CommandConfig) error {
 	}
 	fmt.Printf("Getting tracklist for videoId '%s'\n", config.VideoId)
 	yt.GetVideoInfo(config.YtClient, []string{"snippet", "id"}, config.VideoId)
+
 	switch config.HighestBy {
 	case "like":
-		yt.GetTracklistCommentByLike(config.YtClient, []string{"snippet", "id", "replies"}, config.VideoId)
+		tracklistComment, err := yt.GetTracklistComment(
+			config.YtClient,
+			[]string{"snippet", "id", "replies"},
+			config.VideoId, "like")
+		if err != nil {
+			return err
+		}
+		lines := strings.Split(tracklistComment, "\n")
+		config.SpotifyClient.GetSongsFromLines(lines)
 	case "length":
-		yt.GetTracklistCommentByLength(config.YtClient, []string{"snippet", "id", "replies"}, config.VideoId)
+		tracklistComment, err := yt.GetTracklistComment(
+			config.YtClient,
+			[]string{"snippet", "id", "replies"},
+			config.VideoId, "length")
+		if err != nil {
+			return err
+		}
+		lines := strings.Split(tracklistComment, "\n")
+		config.SpotifyClient.GetSongsFromLines(lines)
 	default:
 		return errors.New("must sort comment by 'like' or 'length'")
 	}

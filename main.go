@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/hlpd-pham/tracklist-youtube/commands"
+	"github.com/hlpd-pham/tracklist-youtube/spotify_wrapper"
 	"github.com/hlpd-pham/tracklist-youtube/yt"
 )
 
@@ -22,10 +23,10 @@ func main() {
 	videoIdFlag := tracklistCmd.String("videoId", "", "videoId")
 	highestByFlag := tracklistCmd.String("highestBy", "like", "highestBy")
 
-	service, err := yt.CreateYoutubeClient()
+	ytClient, err := yt.CreateYoutubeClient()
 	if err != nil {
 		fmt.Println(fmt.Errorf("encounter error while creating youtube client: %v", err))
-		return
+		os.Exit(1)
 	}
 
 	if len(os.Args) < 2 {
@@ -37,9 +38,10 @@ func main() {
 	case "tracklist":
 		tracklistCmd.Parse(os.Args[2:])
 		cmdCfg := commands.CommandConfig{
-			YtClient:  service,
-			VideoId:   *videoIdFlag,
-			HighestBy: *highestByFlag,
+			YtClient:      ytClient,
+			SpotifyClient: spotify_wrapper.GetWrapperClient(),
+			VideoId:       *videoIdFlag,
+			HighestBy:     *highestByFlag,
 		}
 		err = commands.CommandTracklist(&cmdCfg)
 		if err != nil {
