@@ -25,7 +25,14 @@ const missingClientSecretsMessage = `
 Please configure OAuth 2.0
 `
 
+type YtWrapper interface {
+	ChannelsListByHandle(part string, forUsername string)
+	GetTracklistComment(parts []string, videoId string, highestBy string) (string, error)
+	GetVideoInfo(parts []string, videoId string) error
+}
+
 type YtWrapperClient struct {
+	YtWrapper
 	client *youtube.Service
 	logger *log.Logger
 }
@@ -40,7 +47,7 @@ func validateHighestBy(highestBy string) error {
 	return fmt.Errorf("highestBy value has to be: %v", allowedValues)
 }
 
-func NewYtWrapperClient(logger *log.Logger) (*YtWrapperClient, error) {
+func NewYoutubeService() (*youtube.Service, error) {
 	ctx := context.Background()
 
 	b, err := os.ReadFile("youtube_client_secret.json")
@@ -57,12 +64,16 @@ func NewYtWrapperClient(logger *log.Logger) (*YtWrapperClient, error) {
 	client := getClient(ctx, config)
 	service, err := youtube.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-
 		HandleError(err, "Error creating YouTube client")
 		return nil, err
 	}
+
+	return service, nil
+}
+
+func NewYtWrapperClient(logger *log.Logger, ytService *youtube.Service) (*YtWrapperClient, error) {
 	return &YtWrapperClient{
-		client: service,
+		client: ytService,
 		logger: logger,
 	}, nil
 }

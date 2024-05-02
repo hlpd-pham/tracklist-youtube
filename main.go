@@ -25,7 +25,13 @@ func main() {
 	videoIdFlag := tracklistCmd.String("videoId", "", "videoId")
 	highestByFlag := tracklistCmd.String("highestBy", "", "highestBy")
 
-	ytClient, err := yt.NewYtWrapperClient(logger)
+	ytService, err := yt.NewYoutubeService()
+	if err != nil {
+		fmt.Println(fmt.Errorf("encounter error while creating youtube client: %v", err))
+		os.Exit(1)
+	}
+
+	ytClient, err := yt.NewYtWrapperClient(logger, ytService)
 	if err != nil {
 		fmt.Println(fmt.Errorf("encounter error while creating youtube client: %v", err))
 		os.Exit(1)
