@@ -24,6 +24,7 @@ func main() {
 	tracklistCmd := flag.NewFlagSet("tracklist", flag.ExitOnError)
 	videoIdFlag := tracklistCmd.String("videoId", "", "videoId")
 	highestByFlag := tracklistCmd.String("highestBy", "", "highestBy")
+	fetchSpotifyFlag := tracklistCmd.Bool("fetchSpotify", false, "fetchSpotify")
 
 	ytService, err := yt.NewYoutubeService()
 	if err != nil {
@@ -51,6 +52,7 @@ func main() {
 			SpotifyClient: spotify_wrapper.GetWrapperClient(logger),
 			VideoId:       *videoIdFlag,
 			HighestBy:     *highestByFlag,
+			FetchSpotify:  *fetchSpotifyFlag,
 		}
 		err = commands.CommandTracklist(&cmdCfg)
 		if err != nil {

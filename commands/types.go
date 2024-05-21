@@ -10,4 +10,5 @@ type CommandConfig struct {
 	SpotifyClient *spotify_wrapper.WrapperClient
 	VideoId       string
 	HighestBy     string
+	FetchSpotify  bool
 }

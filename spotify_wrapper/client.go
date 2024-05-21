@@ -36,7 +36,8 @@ func GetWrapperClient(logger *log.Logger) *WrapperClient {
 	return &WrapperClient{client: spotify.New(httpClient), logger: logger}
 }
 
-func (c *WrapperClient) GetSongsFromLines(lines []string) {
+func (c *WrapperClient) GetSongsFromLines(lines []string) *[]spotify.FullTrack {
+	trackResults := make([]spotify.FullTrack, 0)
 	for _, line := range lines {
 		bestEffortToken := strings.TrimSpace(line)
 		if strings.Contains(strings.ToLower(bestEffortToken), "id") ||
@@ -65,8 +66,10 @@ func (c *WrapperClient) GetSongsFromLines(lines []string) {
 			artistNames = append(artistNames, aName.Name)
 		}
 
-		c.logger.Printf("top result for song '%s' is %s by %v\n\n", bestEffortToken, bestResult.Name, artistNames)
+		trackResults = append(trackResults, *bestResult)
+		c.logger.Printf("top result for song '%s' is %s by %v\n", bestEffortToken, bestResult.Name, artistNames)
 	}
+	return &trackResults
 }
 
 func (c *WrapperClient) findBestResult(query string, searchResult []spotify.FullTrack) *spotify.FullTrack {
@@ -129,8 +132,8 @@ func (c *WrapperClient) calculateSearchScore(query string, track spotify.FullTra
 	}
 
 	isFullyMatched := artistScore == len(artistTokens) && songScore == len(songNameTokens)
-	c.logger.Printf("track: %v, artists: %v, score: %d, isFullyMatch: %v\n",
-		songNameTokens, artistTokens, songScore+artistScore, isFullyMatched)
+	// c.logger.Printf("track: %v, artists: %v, score: %d, isFullyMatch: %v\n",
+	// 	songNameTokens, artistTokens, songScore+artistScore, isFullyMatched)
 
 	if isFullyMatched {
 		return artistScore + songScore, true

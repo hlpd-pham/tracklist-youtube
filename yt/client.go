@@ -181,7 +181,7 @@ func (y *YtWrapperClient) GetTracklistComment(
 
 	err := validateHighestBy(highestBy)
 	if err != nil {
-		y.logger.Println(err.Error())
+		y.logger.Printf("highestBy value %s is not valid, err: %s", highestBy, err.Error())
 		return "", err
 	}
 
